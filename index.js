@@ -32,29 +32,57 @@ async function run() {
 
 
 
-
-// Instructor Operations //
-    app.post('/addclass', async (req, res) => {
-        const classData = req.body;
-        const result = await classCollection.insertOne(classData);
-        res.send(result)
+    // Global Operations //
+    app.get('/allClasses', async (req, res) => {
+      const result = await classCollection.find().toArray();
+      res.send(result);
     })
-    app.get('/allClasses/:email', async (req, res) =>{
+    app.get('/allUsers', async(req, res)=> {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    })
+    app.get('/isAdmin/:email', async(req, res) => {
       const userEmail = req.params.email;
-      const query = {instructorEmail: userEmail};
+      const user = await userCollection.findOne({ email: userEmail });
+      // console.log('email', userEmail, 'user', user);
+      if (user?.role === 'admin') {
+        res.send({admin: true});
+      }
+    })    
+    app.get('/isInstructor/:email', async(req, res) => {
+      const userEmail = req.params.email;
+      const user = await userCollection.findOne({ email: userEmail });
+      // console.log('email', userEmail, 'user', user);
+      if (user?.role === 'instructor') {
+        res.send({instructor: true});
+      }
+    })
+
+
+
+
+    // Instructor Operations //
+    app.post('/addclass', async (req, res) => {
+      const classData = req.body;
+      const result = await classCollection.insertOne(classData);
+      res.send(result)
+    })
+    app.get('/allClasses/:email', async (req, res) => {
+      const userEmail = req.params.email;
+      const query = { instructorEmail: userEmail };
       // console.log('email 1', userEmail,'email query', query);
       const result = await classCollection.find(query).toArray();
       res.send(result);
     })
     app.post('/users', async (req, res) => {
       const body = req.body;
-      const query = {email: body.email};
+      const query = { email: body.email };
       const existingUser = await userCollection.findOne(query);
       // console.log(query, existingUser, body.email);
       if (existingUser) {
-       return  res.send('User already exists');
+        return res.send('User already exists');
       }
-      else{
+      else {
         const result = await userCollection.insertOne(body);
         res.send(result);
       }
@@ -63,27 +91,49 @@ async function run() {
 
 
     // Admin Operations //
-
-    app.get('/allClasses', async (req, res) =>{
-      const result = await classCollection.find().toArray();
-      res.send(result);
-    })
-    app.put('/updateStatus/:id', async(req, res) => {
+    app.put('/updateStatus/:id', async (req, res) => {
       const id = req.params.id;
       const statusData = req.body;
       const instructorStatus = statusData.status;
-      console.log('id', id, 'status', instructorStatus);
-      const filter = {_id: new ObjectId(id)};
-      const options = {upsert: true};
+      // console.log('id', id, 'status', instructorStatus);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
       const updateStatus = {
         $set: {
           status: instructorStatus,
         }
-      } 
+      }
       const result = await classCollection.updateOne(filter, updateStatus, options);
       res.send(result);
     })
-
+    app.put('/classFeedbackUpdate/:id', async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const feedback = data.feedback;
+      const filter = { _id: new ObjectId(id) };
+      // console.log(id, data, feedback);
+      const options = { upsert: true };
+      const newFeedback = {
+        $set: {
+          adminFeedback: feedback,
+        }
+      }
+      const result = classCollection.updateOne(filter, newFeedback, options);
+      res.send(result);
+    })
+    app.put('/adminRoleUpdate/:id', async (req, res) => {
+      const id = req.params.id;
+      const userRole = req.body;
+      const filter = {_id: new ObjectId(id)};
+      const options = {upsert: true};
+      const updateRole = {
+        $set: {
+          role: userRole.role,
+        }
+      }
+      const result = await userCollection.updateOne(filter, updateRole, options);
+      res.send(result);
+    })
 
 
 
@@ -135,9 +185,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('Summer Sports Excellence is running')
+  res.send('Summer Sports Excellence is running')
 })
 
-app.listen(port, ()=> {
-    console.log(`http://localhost:${port}/`);
+app.listen(port, () => {
+  console.log(`http://localhost:${port}/`);
 })
