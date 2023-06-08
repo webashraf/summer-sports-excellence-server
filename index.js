@@ -10,7 +10,7 @@ app.use(express.json());
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.37yfgb3.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -32,6 +32,8 @@ async function run() {
 
 
 
+
+// Instructor Operations //
     app.post('/addclass', async (req, res) => {
         const classData = req.body;
         const result = await classCollection.insertOne(classData);
@@ -40,13 +42,10 @@ async function run() {
     app.get('/allClasses/:email', async (req, res) =>{
       const userEmail = req.params.email;
       const query = {instructorEmail: userEmail};
-      console.log('email 1', userEmail,'email query', query);
+      // console.log('email 1', userEmail,'email query', query);
       const result = await classCollection.find(query).toArray();
       res.send(result);
     })
-
-
-
     app.post('/users', async (req, res) => {
       const body = req.body;
       const query = {email: body.email};
@@ -59,10 +58,31 @@ async function run() {
         const result = await userCollection.insertOne(body);
         res.send(result);
       }
-
     })
 
 
+
+    // Admin Operations //
+
+    app.get('/allClasses', async (req, res) =>{
+      const result = await classCollection.find().toArray();
+      res.send(result);
+    })
+    app.put('/updateStatus/:id', async(req, res) => {
+      const id = req.params.id;
+      const statusData = req.body;
+      const instructorStatus = statusData.status;
+      console.log('id', id, 'status', instructorStatus);
+      const filter = {_id: new ObjectId(id)};
+      const options = {upsert: true};
+      const updateStatus = {
+        $set: {
+          status: instructorStatus,
+        }
+      } 
+      const result = await classCollection.updateOne(filter, updateStatus, options);
+      res.send(result);
+    })
 
 
 
