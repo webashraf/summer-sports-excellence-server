@@ -28,6 +28,7 @@ async function run() {
     await client.connect();
     const classCollection = client.db('summerCampDB').collection('classes')
     const userCollection = client.db('summerCampDB').collection('users')
+    const selectedClassCollection = client.db('summerCampDB').collection('selectedClasses')
 
 
 
@@ -37,27 +38,63 @@ async function run() {
       const result = await classCollection.find().toArray();
       res.send(result);
     })
-    app.get('/allUsers', async(req, res)=> {
+    app.get('/allUsers', async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     })
-    app.get('/isAdmin/:email', async(req, res) => {
+    app.get('/isAdmin/:email', async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
       if (user?.role === 'admin') {
-        res.send({admin: true});
+        res.send({ admin: true });
       }
-    })    
-    app.get('/isInstructor/:email', async(req, res) => {
+    })
+    app.get('/isInstructor/:email', async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
       if (user?.role === 'instructor') {
-        res.send({instructor: true});
+        res.send({ instructor: true });
+      }
+    })
+    app.get('/isUser/:email', async (req, res) => {
+      const userEmail = req.params.email;
+      const user = await userCollection.findOne({ email: userEmail });
+      // console.log('email', userEmail, 'user', user);
+      if (!user?.role) {
+        res.send({ user: true });
       }
     })
 
+    // Classes page operations //
+    app.get('/approvedClasses', async (req, res) => {
+      const result = await classCollection.find({ status: "approved" }).toArray();
+      res.send(result)
+    })
+    app.post('/selectedClass/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const selectedClass = await classCollection.findOne(query);
+      const allReadySelected = await selectedClassCollection.findOne({ classId: id });
+      
+      // console.log();
+      if (allReadySelected?.classId === id) {
+        return res.send('Class allready selected');
+      }
+      else {
+        const newSelectedClass = {
+          classId: id,
+          classPhoto: selectedClass.photoUrl,
+          className: selectedClass.className,
+          instructorName: selectedClass.instructorName,
+          instructorEmail: selectedClass.instructorEmail,
+          price: '100',
+        }
+        const result = await selectedClassCollection.insertOne(newSelectedClass);
+        res.send(result)
+      }
+    })
 
 
 
@@ -124,8 +161,8 @@ async function run() {
     app.put('/adminRoleUpdate/:id', async (req, res) => {
       const id = req.params.id;
       const userRole = req.body;
-      const filter = {_id: new ObjectId(id)};
-      const options = {upsert: true};
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
       const updateRole = {
         $set: {
           role: userRole.role,
