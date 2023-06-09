@@ -4,6 +4,8 @@ const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.PAYMENT_METHOD_PK);
+
 
 // middleware //
 app.use(cors());
@@ -12,14 +14,14 @@ const jwtVerify = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
     console.log('errror: 1');
-    return res.status(401).send({error: true, message: 'invalid authorization'});
+    return res.status(401).send({ error: true, message: 'invalid authorization' });
   }
   const token = authorization.split(' ')[1];
   console.log(token);
-  jwt.verify(token, process.env.JWT_TOKEN, (error, decoded) =>{
+  jwt.verify(token, process.env.JWT_TOKEN, (error, decoded) => {
     if (error) {
       console.log('errror: 2');
-      return res.status(401).send({error: true, message: 'unauthorized access'});
+      return res.status(401).send({ error: true, message: 'unauthorized access' });
     }
     req.decoded = decoded;
     next();
@@ -54,11 +56,39 @@ async function run() {
 
 
 
+
+    // Payment method implement //
+    app.post('/createPaymentIntent', jwtVerify, async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
+      const courseAmount = parseInt(amount)
+      console.log(courseAmount);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: courseAmount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      })
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      })
+
+    })
+    app.get('/single_course_for_payment/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await selectedClassCollection.findOne(query);
+      res.send(result);
+    })
+
+
+
+
+
     // Get JWT token //
     app.post('/jwt', (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.JWT_TOKEN, {expiresIn: '1hr'})
-      res.send({token})
+      const token = jwt.sign(user, process.env.JWT_TOKEN, { expiresIn: '1hr' })
+      res.send({ token })
     })
 
 
@@ -97,13 +127,12 @@ async function run() {
     app.get('/isUser/:email', async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
-      // console.log('email', userEmail, 'user', user);
-      console.log(!user?.role);
+
       if (!user?.role) {
         res.send({ user: true });
       }
     })
-/////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -144,16 +173,16 @@ async function run() {
 
     // User Dashboard Operations //
     // find selected class by students //
-    app.get('/selectedClasses/:email', jwtVerify, async(req, res) => {
+    app.get('/selectedClasses/:email', jwtVerify, async (req, res) => {
       const userEmail = req.params.email;
-      const query = {studentEmail: userEmail};
+      const query = { studentEmail: userEmail };
       const result = await selectedClassCollection.find(query).toArray();
       res.send(result);
     })
     // Delete selected class from selectedClassCollection //
-    app.delete('/deleteSelectedClass/:id',jwtVerify, async (req, res) => {
+    app.delete('/deleteSelectedClass/:id', jwtVerify, async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await selectedClassCollection.deleteOne(query);
       res.send(result);
     })
