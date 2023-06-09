@@ -3,10 +3,31 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 // middleware //
 app.use(cors());
 app.use(express.json());
+const jwtVerify = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    console.log('errror: 1');
+    return res.status(401).send({error: true, message: 'invalid authorization'});
+  }
+  const token = authorization.split(' ')[1];
+  console.log(token);
+  jwt.verify(token, process.env.JWT_TOKEN, (error, decoded) =>{
+    if (error) {
+      console.log('errror: 2');
+      return res.status(401).send({error: true, message: 'unauthorized access'});
+    }
+    req.decoded = decoded;
+    next();
+  })
+}
+
+
+
 
 
 
@@ -33,15 +54,30 @@ async function run() {
 
 
 
+    // Get JWT token //
+    app.post('/jwt', (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_TOKEN, {expiresIn: '1hr'})
+      res.send({token})
+    })
+
+
+
     // Global Operations //
+    ///////////////////////
+    // get all class from classCollection //
     app.get('/allClasses', async (req, res) => {
       const result = await classCollection.find().toArray();
       res.send(result);
     })
-    app.get('/allUsers', async (req, res) => {
+
+    // get all users from userCollection //
+    app.get('/allUsers', jwtVerify, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     })
+
+    // Find user role from userCollections //
     app.get('/isAdmin/:email', async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
@@ -62,22 +98,29 @@ async function run() {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
+      console.log(!user?.role);
       if (!user?.role) {
         res.send({ user: true });
       }
     })
+/////////////////////////////////////////////////////////////////////////////////
+
+
 
     // Classes page operations //
+    // get all approved class from classCollection //
     app.get('/approvedClasses', async (req, res) => {
       const result = await classCollection.find({ status: "approved" }).toArray();
       res.send(result)
     })
+    // Insert students selected class in the mongodb using post method //
     app.post('/selectedClass/:id', async (req, res) => {
       const id = req.params.id;
+      const studentEmail = req.body.email;
+      console.log(studentEmail);
       const query = { _id: new ObjectId(id) };
       const selectedClass = await classCollection.findOne(query);
       const allReadySelected = await selectedClassCollection.findOne({ classId: id });
-      
       // console.log();
       if (allReadySelected?.classId === id) {
         return res.send('Class allready selected');
@@ -89,7 +132,8 @@ async function run() {
           className: selectedClass.className,
           instructorName: selectedClass.instructorName,
           instructorEmail: selectedClass.instructorEmail,
-          price: '100',
+          price: selectedClass.price,
+          studentEmail
         }
         const result = await selectedClassCollection.insertOne(newSelectedClass);
         res.send(result)
@@ -98,12 +142,34 @@ async function run() {
 
 
 
+    // User Dashboard Operations //
+    // find selected class by students //
+    app.get('/selectedClasses/:email', jwtVerify, async(req, res) => {
+      const userEmail = req.params.email;
+      const query = {studentEmail: userEmail};
+      const result = await selectedClassCollection.find(query).toArray();
+      res.send(result);
+    })
+    // Delete selected class from selectedClassCollection //
+    app.delete('/deleteSelectedClass/:id',jwtVerify, async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await selectedClassCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
+
+
     // Instructor Operations //
+    // Add new class in mongodb class collection by adding from instructor //
     app.post('/addclass', async (req, res) => {
       const classData = req.body;
       const result = await classCollection.insertOne(classData);
       res.send(result)
     })
+
+    // get spacific instructor all classes //
     app.get('/allClasses/:email', async (req, res) => {
       const userEmail = req.params.email;
       const query = { instructorEmail: userEmail };
@@ -111,6 +177,8 @@ async function run() {
       const result = await classCollection.find(query).toArray();
       res.send(result);
     })
+
+    /* add new user in to the userCollection */
     app.post('/users', async (req, res) => {
       const body = req.body;
       const query = { email: body.email };
@@ -127,7 +195,9 @@ async function run() {
 
 
 
+
     // Admin Operations //
+    // add user status like admin instructor //
     app.put('/updateStatus/:id', async (req, res) => {
       const id = req.params.id;
       const statusData = req.body;
@@ -143,6 +213,8 @@ async function run() {
       const result = await classCollection.updateOne(filter, updateStatus, options);
       res.send(result);
     })
+
+    // Add admin feedback about instructor class //
     app.put('/classFeedbackUpdate/:id', async (req, res) => {
       const id = req.params.id;
       const data = req.body;
@@ -158,6 +230,7 @@ async function run() {
       const result = classCollection.updateOne(filter, newFeedback, options);
       res.send(result);
     })
+    // Update use role like admin instructor //
     app.put('/adminRoleUpdate/:id', async (req, res) => {
       const id = req.params.id;
       const userRole = req.body;
@@ -182,8 +255,6 @@ async function run() {
 
 
 
-
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -193,31 +264,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
