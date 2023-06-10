@@ -17,7 +17,7 @@ const jwtVerify = (req, res, next) => {
     return res.status(401).send({ error: true, message: 'invalid authorization' });
   }
   const token = authorization.split(' ')[1];
-  console.log(token);
+  // console.log(token);
   jwt.verify(token, process.env.JWT_TOKEN, (error, decoded) => {
     if (error) {
       console.log('errror: 2');
@@ -63,7 +63,7 @@ async function run() {
       const { price } = req.body;
       const amount = price * 100;
       const courseAmount = parseInt(amount)
-      console.log(courseAmount);
+      // console.log(courseAmount);
       const paymentIntent = await stripe.paymentIntents.create({
         amount: courseAmount,
         currency: 'usd',
@@ -91,10 +91,10 @@ async function run() {
 
     app.post('/payment', jwtVerify,async (req, res) => {
       const paymentHistory = req.body;
-      console.log(paymentHistory);
+      // console.log(paymentHistory);
       const result = await paymentCollection.insertOne(paymentHistory);
 
-      console.log('paymentHistory', paymentHistory.classId);
+      // console.log('paymentHistory', paymentHistory.classId);
       const filter = {_id: new ObjectId(paymentHistory.classId)};
       const instructorClass = await classCollection.findOne(filter);
       // console.log('instructorClass', instructorClass);
@@ -192,7 +192,7 @@ async function run() {
     app.post('/selectedClass/:id', async (req, res) => {
       const id = req.params.id;
       const studentEmail = req.body.email;
-      console.log(studentEmail);
+      // console.log(studentEmail);
       const query = { _id: new ObjectId(id) };
       const selectedClass = await classCollection.findOne(query);
       const allReadySelected = await selectedClassCollection.findOne({ classId: id });
@@ -277,6 +277,15 @@ async function run() {
       }
     })
 
+    app.get('getInstructors', async (req, res) => {
+      
+    })
+
+    app.get('/instructors', async(req, res) => {
+      const query = {role: 'instructor'};
+      const result = await userCollection.find(query).toArray();
+      res.send(result);
+    })
 
 
 
@@ -286,16 +295,34 @@ async function run() {
       const id = req.params.id;
       const statusData = req.body;
       const instructorStatus = statusData.status;
-      // console.log('id', id, 'status', instructorStatus);
       const filter = { _id: new ObjectId(id) };
+      const instructorClass = await classCollection.findOne(filter);
+
+      const secondFilter = {instructorEmail: instructorClass.instructorEmail};
+      const instructorAllClasses = await classCollection.find(secondFilter).toArray();
+      const approvedAllClass = instructorAllClasses.filter(approvedClass => approvedClass.instructorEmail === instructorClass.instructorEmail && approvedClass.status === 'approved')
+      const approvedClassName = approvedAllClass.map(approvedClass => approvedClass.className);
+      const thirdFilter = {email: instructorClass.instructorEmail}
       const options = { upsert: true };
+      
       const updateStatus = {
         $set: {
           status: instructorStatus,
         }
       }
       const result = await classCollection.updateOne(filter, updateStatus, options);
-      res.send(result);
+      const updateInstructorInfoToUserCollection = {
+        $set: {
+          classes: approvedClassName,
+          totalClass: approvedClassName.length,
+        }
+      }
+      // console.log(result);
+
+      if (result.acknowledged) {
+        const updateInstructorUserInfo = await userCollection.updateOne(thirdFilter, updateInstructorInfoToUserCollection, options);
+        res.send({result, updateInstructorUserInfo});
+      }
     })
 
     // Add admin feedback about instructor class //
