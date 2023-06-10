@@ -31,8 +31,6 @@ const jwtVerify = (req, res, next) => {
 
 
 
-
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.37yfgb3.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -57,13 +55,11 @@ async function run() {
 
 
 
-
     // Payment method implement //
     app.post('/createPaymentIntent', jwtVerify, async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
       const courseAmount = parseInt(amount)
-      // console.log(courseAmount);
       const paymentIntent = await stripe.paymentIntents.create({
         amount: courseAmount,
         currency: 'usd',
@@ -84,25 +80,14 @@ async function run() {
 
 
 
-
-
-
-
-
     app.post('/payment', jwtVerify,async (req, res) => {
       const paymentHistory = req.body;
-      // console.log(paymentHistory);
       const result = await paymentCollection.insertOne(paymentHistory);
 
-      // console.log('paymentHistory', paymentHistory.classId);
       const filter = {_id: new ObjectId(paymentHistory.classId)};
       const instructorClass = await classCollection.findOne(filter);
-      // console.log('instructorClass', instructorClass);
-      // const options = {upsert: true}
       const previousSeats = instructorClass.seats;
-      // console.log('previousSeats', previousSeats);
       const totalSeats = parseFloat(previousSeats) - 1;
-      // console.log(totalSeats);
       const enrolled = instructorClass?.enrolled || 0;
       const newEnrolled = enrolled + 1;
 
@@ -112,9 +97,7 @@ async function run() {
           enrolled: newEnrolled,
         }
       } 
-      // console.log('updatedSeats', updatedSeats);
       const updateSeats = await classCollection.updateOne(filter, updatedSeats);
-      // console.log('updateSeats', updateSeats);
 
 
       const query = {classId: paymentHistory.classId};
@@ -202,11 +185,9 @@ async function run() {
     app.post('/selectedClass/:id', async (req, res) => {
       const id = req.params.id;
       const studentEmail = req.body.email;
-      // console.log(studentEmail);
       const query = { _id: new ObjectId(id) };
       const selectedClass = await classCollection.findOne(query);
       const allReadySelected = await selectedClassCollection.findOne({ classId: id });
-      // console.log();
       if (allReadySelected?.classId === id) {
         return res.send('Class allready selected');
       }
@@ -267,7 +248,6 @@ async function run() {
     app.get('/allClasses/:email', async (req, res) => {
       const userEmail = req.params.email;
       const query = { instructorEmail: userEmail };
-      // console.log('email 1', userEmail,'email query', query);
       const result = await classCollection.find(query).toArray();
       res.send(result);
     })
@@ -277,7 +257,6 @@ async function run() {
       const body = req.body;
       const query = { email: body.email };
       const existingUser = await userCollection.findOne(query);
-      // console.log(query, existingUser, body.email);
       if (existingUser) {
         return res.send('User already exists');
       }
@@ -327,7 +306,6 @@ async function run() {
           totalClass: approvedClassName.length,
         }
       }
-      // console.log(result);
 
       if (result.acknowledged) {
         const updateInstructorUserInfo = await userCollection.updateOne(thirdFilter, updateInstructorInfoToUserCollection, options);
@@ -341,7 +319,6 @@ async function run() {
       const data = req.body;
       const feedback = data.feedback;
       const filter = { _id: new ObjectId(id) };
-      // console.log(id, data, feedback);
       const options = { upsert: true };
       const newFeedback = {
         $set: {
@@ -365,11 +342,6 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateRole, options);
       res.send(result);
     })
-
-
-
-
-
 
 
 
