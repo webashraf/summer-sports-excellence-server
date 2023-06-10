@@ -91,6 +91,7 @@ async function run() {
 
     app.post('/payment', jwtVerify,async (req, res) => {
       const paymentHistory = req.body;
+      console.log(paymentHistory);
       const result = await paymentCollection.insertOne(paymentHistory);
 
       console.log('paymentHistory', paymentHistory.classId);
@@ -232,6 +233,15 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/enrolledClass/:email', jwtVerify,async (req, res) => {
+      const userEmail = req.params.email;
+      const query = {studentEmail: userEmail};
+      const options = {
+        sort: {paymentTime: -1}
+      }
+      const result = await paymentCollection.find(query, options).toArray();
+      res.send(result);
+    })
 
 
 
