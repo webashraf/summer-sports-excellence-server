@@ -180,6 +180,16 @@ async function run() {
     })
     /////////////////////////////////////////////////////////////////////////////////
 
+    // Home Page Operations //
+    app.get('/allInstructorsClasses', async (req, res) => {
+      const filter = {status: "approved"};
+      const sorting = {
+        sort: {enrolled: -1}
+      };
+      const result = await classCollection.find(filter, sorting).toArray();
+      res.send(result);
+ 
+    })
 
 
     // Classes page operations //
