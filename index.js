@@ -52,6 +52,7 @@ async function run() {
     const classCollection = client.db('summerCampDB').collection('classes')
     const userCollection = client.db('summerCampDB').collection('users')
     const selectedClassCollection = client.db('summerCampDB').collection('selectedClasses')
+    const paymentCollection = client.db('summerCampDB').collection('collectedPayment')
 
 
 
@@ -79,6 +80,50 @@ async function run() {
       const result = await selectedClassCollection.findOne(query);
       res.send(result);
     })
+
+
+
+
+
+
+
+
+
+    app.post('/payment', jwtVerify,async (req, res) => {
+      const paymentHistory = req.body;
+      const result = await paymentCollection.insertOne(paymentHistory);
+
+      console.log('paymentHistory', paymentHistory.classId);
+      const filter = {_id: new ObjectId(paymentHistory.classId)};
+      const instructorClass = await classCollection.findOne(filter);
+      // console.log('instructorClass', instructorClass);
+      // const options = {upsert: true}
+      const previousSeats = instructorClass.seats;
+      // console.log('previousSeats', previousSeats);
+      const totalSeats = parseFloat(previousSeats) - 1;
+      // console.log(totalSeats);
+      const enrolled = instructorClass?.enrolled || 0;
+      const newEnrolled = enrolled + 1;
+
+      const updatedSeats = {
+        $set: {
+          seats: totalSeats,
+          enrolled: newEnrolled,
+        }
+      } 
+      // console.log('updatedSeats', updatedSeats);
+      const updateSeats = await classCollection.updateOne(filter, updatedSeats);
+      // console.log('updateSeats', updateSeats);
+
+
+      const query = {classId: paymentHistory.classId};
+      console.log('query', query);
+      const deleteCourse = await selectedClassCollection.deleteOne(query);
+      console.log('deleteCourse', deleteCourse);
+
+      res.send({result, deleteCourse, updateSeats})
+    })
+
 
 
 
