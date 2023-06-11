@@ -137,7 +137,7 @@ async function run() {
     })
 
     // Find user role from userCollections //
-    app.get('/isAdmin/:email', async (req, res) => {
+    app.get('/isAdmin/:email', jwtVerify,async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
