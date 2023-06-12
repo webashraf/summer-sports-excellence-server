@@ -149,11 +149,7 @@ async function run() {
         res.send({ admin: true });
       }
     })
-    app.get('/isInstructor/:email', jwtVerify, async (req, res) => {
-      const email = req.decoded.email;
-      if (!email) {
-        return res.status(403).send({ error: true, message: 'forbidden email' })
-      }
+    app.get('/isInstructor/:email', async (req, res) => {
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
@@ -176,11 +172,8 @@ async function run() {
     /////////////////////////////////////////////////////////////////////////////////
 
     // Home Page Operations //
-    app.get('/allInstructorsClasses', jwtVerify, async (req, res) => {
-      const email = req.decoded.email;
-      if (!email) {
-        return res.status(403).send({ error: true, message: 'forbidden email' })
-      }
+    app.get('/allInstructorsClasses', async (req, res) => {
+
       const filter = { status: "approved" };
       const sorting = {
         sort: { enrolled: -1 }
