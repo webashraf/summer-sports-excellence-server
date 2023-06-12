@@ -72,7 +72,7 @@ async function run() {
     })
     app.get('/single_course_for_payment/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await selectedClassCollection.findOne(query);
       res.send(result);
     })
@@ -80,11 +80,11 @@ async function run() {
 
 
 
-    app.post('/payment', jwtVerify,async (req, res) => {
+    app.post('/payment', jwtVerify, async (req, res) => {
       const paymentHistory = req.body;
       const result = await paymentCollection.insertOne(paymentHistory);
 
-      const filter = {_id: new ObjectId(paymentHistory.classId)};
+      const filter = { _id: new ObjectId(paymentHistory.classId) };
       const instructorClass = await classCollection.findOne(filter);
       const previousSeats = instructorClass.seats;
       const totalSeats = parseFloat(previousSeats) - 1;
@@ -96,16 +96,16 @@ async function run() {
           seats: totalSeats,
           enrolled: newEnrolled,
         }
-      } 
+      }
       const updateSeats = await classCollection.updateOne(filter, updatedSeats);
 
 
-      const query = {classId: paymentHistory.classId};
+      const query = { classId: paymentHistory.classId };
       console.log('query', query);
       const deleteCourse = await selectedClassCollection.deleteOne(query);
       console.log('deleteCourse', deleteCourse);
 
-      res.send({result, deleteCourse, updateSeats})
+      res.send({ result, deleteCourse, updateSeats })
     })
 
 
@@ -137,7 +137,11 @@ async function run() {
     })
 
     // Find user role from userCollections //
-    app.get('/isAdmin/:email', jwtVerify,async (req, res) => {
+    app.get('/isAdmin/:email', jwtVerify, async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({ error: true, message: 'forbidden email' })
+      }
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
@@ -145,7 +149,11 @@ async function run() {
         res.send({ admin: true });
       }
     })
-    app.get('/isInstructor/:email', async (req, res) => {
+    app.get('/isInstructor/:email', jwtVerify, async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({ error: true, message: 'forbidden email' })
+      }
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
       // console.log('email', userEmail, 'user', user);
@@ -153,7 +161,11 @@ async function run() {
         res.send({ instructor: true });
       }
     })
-    app.get('/isUser/:email', async (req, res) => {
+    app.get('/isUser/:email', jwtVerify,async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({error: true, message: 'forbidden email'})
+      }
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
 
@@ -164,14 +176,18 @@ async function run() {
     /////////////////////////////////////////////////////////////////////////////////
 
     // Home Page Operations //
-    app.get('/allInstructorsClasses', async (req, res) => {
-      const filter = {status: "approved"};
+    app.get('/allInstructorsClasses', jwtVerify, async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({ error: true, message: 'forbidden email' })
+      }
+      const filter = { status: "approved" };
       const sorting = {
-        sort: {enrolled: -1}
+        sort: { enrolled: -1 }
       };
       const result = await classCollection.find(filter, sorting).toArray();
       res.send(result);
- 
+
     })
 
 
@@ -211,6 +227,10 @@ async function run() {
     // User Dashboard Operations //
     // find selected class by students //
     app.get('/selectedClasses/:email', jwtVerify, async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({error: true, message: 'forbidden email'})
+      }
       const userEmail = req.params.email;
       const query = { studentEmail: userEmail };
       const result = await selectedClassCollection.find(query).toArray();
@@ -224,11 +244,15 @@ async function run() {
       res.send(result);
     })
 
-    app.get('/enrolledClass/:email', jwtVerify,async (req, res) => {
+    app.get('/enrolledClass/:email', jwtVerify, async (req, res) => {
+      const email = req.decoded.email;
+      if (!email) {
+        return res.status(403).send({error: true, message: 'forbidden email'})
+      }
       const userEmail = req.params.email;
-      const query = {studentEmail: userEmail};
+      const query = { studentEmail: userEmail };
       const options = {
-        sort: {paymentTime: -1}
+        sort: { paymentTime: -1 }
       }
       const result = await paymentCollection.find(query, options).toArray();
       res.send(result);
@@ -266,12 +290,9 @@ async function run() {
       }
     })
 
-    app.get('getInstructors', async (req, res) => {
-      
-    })
 
-    app.get('/instructors', async(req, res) => {
-      const query = {role: 'instructor'};
+    app.get('/instructors', async (req, res) => {
+      const query = { role: 'instructor' };
       const result = await userCollection.find(query).toArray();
       res.send(result);
     })
@@ -287,13 +308,13 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const instructorClass = await classCollection.findOne(filter);
 
-      const secondFilter = {instructorEmail: instructorClass.instructorEmail};
+      const secondFilter = { instructorEmail: instructorClass.instructorEmail };
       const instructorAllClasses = await classCollection.find(secondFilter).toArray();
       const approvedAllClass = instructorAllClasses.filter(approvedClass => approvedClass.instructorEmail === instructorClass.instructorEmail && approvedClass.status === 'approved')
       const approvedClassName = approvedAllClass.map(approvedClass => approvedClass.className);
-      const thirdFilter = {email: instructorClass.instructorEmail}
+      const thirdFilter = { email: instructorClass.instructorEmail }
       const options = { upsert: true };
-      
+
       const updateStatus = {
         $set: {
           status: instructorStatus,
@@ -309,7 +330,7 @@ async function run() {
 
       if (result.acknowledged) {
         const updateInstructorUserInfo = await userCollection.updateOne(thirdFilter, updateInstructorInfoToUserCollection, options);
-        res.send({result, updateInstructorUserInfo});
+        res.send({ result, updateInstructorUserInfo });
       }
     })
 
