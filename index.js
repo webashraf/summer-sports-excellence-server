@@ -157,11 +157,8 @@ async function run() {
         res.send({ instructor: true });
       }
     })
-    app.get('/isUser/:email', jwtVerify,async (req, res) => {
-      const email = req.decoded.email;
-      if (!email) {
-        return res.status(403).send({error: true, message: 'forbidden email'})
-      }
+    app.get('/isUser/:email', async (req, res) => {
+
       const userEmail = req.params.email;
       const user = await userCollection.findOne({ email: userEmail });
 
